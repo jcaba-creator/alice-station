@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0c0f17">
+  <title>A.L.I.C.E. • Field Station</title>
+  <style>
+    :root {
+      --bg-color: #0c0f17;
+      --card-bg: #161b26;
+      --user-bubble: #2563eb;
+      --bot-bubble: #1f2637;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --border-color: #2e384d;
+      --chip-bg: #1e2638;
+      --chip-border: #3b4764;
+      --success: #22c55e;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+      font-size: 16px;
+    }
+    header {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .status-dot { width: 10px; height: 10px; background-color: var(--success); border-radius: 50%; box-shadow: 0 0 8px var(--success); }
+    .header-title { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; }
+    .header-sub { font-size: 0.72rem; color: var(--text-muted); }
+    .header-badge {
+      font-size: 0.75rem; background: #0b111e; color: var(--accent);
+      padding: 5px 12px; border-radius: 12px; border: 1px solid var(--border-color); font-weight: 600;
+      cursor: pointer;
+    }
+    .chip-bar {
+      display: flex; gap: 8px; padding: 8px 12px;
+      background-color: rgba(22, 27, 38, 0.85);
+      border-bottom: 1px solid var(--border-color);
+      overflow-x: auto; white-space: nowrap; flex-shrink: 0; scrollbar-width: none;
+    }
+    .chip-bar::-webkit-scrollbar { display: none; }
+    .chip {
+      background-color: var(--chip-bg); color: var(--text-main);
+      border: 1px solid var(--chip-border); border-radius: 16px;
+      padding: 8px 14px; font-size: 0.85rem; font-weight: 500; cursor: pointer;
+      min-height: 38px; display: inline-flex; align-items: center; user-select: none;
+    }
+    .chip:active { background-color: var(--accent); color: #0b111e; }
+    #chat-container {
+      flex: 1; overflow-y: auto; padding: 16px 14px;
+      display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth;
+    }
+    .message { display: flex; flex-direction: column; max-width: 88%; animation: fadeIn 0.15s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .message.user { align-self: flex-end; }
+    .message.bot { align-self: flex-start; }
+    .bubble {
+      padding: 12px 16px; border-radius: 18px; line-height: 1.48;
+      word-break: break-word; font-size: 0.98rem; white-space: pre-wrap;
+    }
+    .message.user .bubble {
+      background-color: var(--user-bubble); color: #ffffff;
+      border-bottom-right-radius: 4px; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+    }
+    .message.bot .bubble {
+      background-color: var(--bot-bubble); color: var(--text-main);
+      border-bottom-left-radius: 4px; border: 1px solid var(--border-color);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
+    .msg-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; padding: 0 4px; }
+    .message.user .msg-meta { align-self: flex-end; }
+    footer {
+      background-color: var(--card-bg); border-top: 1px solid var(--border-color);
+      padding: 10px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+    #message-input {
+      flex: 1; height: 48px; background-color: #080b12; color: var(--text-main);
+      border: 1px solid var(--border-color); border-radius: 24px; padding: 0 16px;
+      font-size: 16px; outline: none;
+    }
+    #message-input:focus { border-color: var(--accent); }
+    #send-btn {
+      height: 48px; min-width: 62px; background-color: var(--user-bubble);
+      color: #ffffff; border: none; border-radius: 24px; font-weight: 700;
+      font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    #send-btn:active { transform: scale(0.96); background-color: #1d4ed8; }
+
+    /* Modals */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .modal-card {
+      background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px;
+      width: 100%; max-width: 520px; padding: 20px; display: flex; flex-direction: column; gap: 14px;
+      max-height: 85vh; overflow-y: auto;
+    }
+    .modal-title { font-size: 1.15rem; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
+    .modal-body textarea {
+      width: 100%; height: 160px; background: #080b12; border: 1px solid var(--border-color);
+      color: var(--text-main); border-radius: 8px; padding: 10px; font-family: monospace; font-size: 0.85rem;
+    }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+    .btn-action {
+      padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 0.9rem;
+    }
+    .btn-close { background: #334155; color: white; }
+    .btn-copy { background: var(--accent); color: #080b12; }
+    .btn-import { background: var(--success); color: #080b12; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-left">
+      <div class="status-dot"></div>
+      <div>
+        <div class="header-title">A.L.I.C.E. Station</div>
+        <div class="header-sub" id="header-records">Offline • 0 Records • 0 Rules</div>
+      </div>
+    </div>
+    <div class="header-badge" onclick="openSyncModal()">🔄 Sync / Backup</div>
+  </header>
+
+  <div class="chip-bar">
+    <div class="chip" onclick="quickSend('what do you know')">🧠 What do you know?</div>
+    <div class="chip" onclick="quickSend('my rules')">📜 My Custom Rules</div>
+    <div class="chip" onclick="quickSend('where is my data')">💾 Where is data saved?</div>
+    <div class="chip" onclick="quickSend('show ledger')">📖 Show Ledger</div>
+    <div class="chip" onclick="quickSend('what is my equipment')">🚜 Equipment</div>
+    <div class="chip" onclick="quickSend('tell me a joke')">😄 Tell a Joke</div>
+  </div>
+
+  <main id="chat-container">
+    <div class="message bot">
+      <div class="bubble">I am A.L.I.C.E., your offline field intelligence. All records, rules, and conversational logic are running inside your browser with zero cloud dependence. Tap "What do you know?" to see my capabilities, or teach me a new recurring rule below.</div>
+      <div class="msg-meta">A.L.I.C.E. • Active Offline</div>
+    </div>
+  </main>
+
+  <footer>
+    <input type="text" id="message-input" placeholder="Talk to A.L.I.C.E. or type 'Rule: Every Tuesday...'" autocomplete="off" autocapitalize="sentences">
+    <button id="send-btn" onclick="sendMessage()">Send</button>
+  </footer>
+
+  <!-- Sync Modal -->
+  <div id="sync-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-title">
+        <span>🔄 Multi-Device Sync Ledger</span>
+        <span style="font-size:1.2rem; cursor:pointer;" onclick="closeSyncModal()">✕</span>
+      </div>
+      <p style="font-size:0.85rem; color:var(--text-muted);">
+        All your records and custom rules are saved locally on this device. You can copy this data to paste on your Laptop/Tablet, or paste data from other devices here to merge without overwriting.
+      </p>
+      <div class="modal-body">
+        <textarea id="sync-data" readonly></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-action btn-copy" onclick="copySyncData()">Copy to Clipboard</button>
+        <button class="btn-action btn-import" onclick="importSyncData()">Merge New Data</button>
+        <button class="btn-action btn-close" onclick="closeSyncModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    // =========================================================================
+    // 1. DATA STORAGE ARCHITECTURE (Device LocalStorage)
+    // =========================================================================
+    const STORAGE_KEY_LEDGER = "ALICE_OPERATIONS_LEDGER_V1";
+    const STORAGE_KEY_EQUIPMENT = "ALICE_EQUIPMENT_MEMORY_V1";
+    const STORAGE_KEY_RULES = "ALICE_USER_RULES_V1";
+
+    let ledgerRecords = [];
+    let userRules = [];
+    let botMemory = {
+      name: "Josh",
+      botname: "A.L.I.C.E.",
+      master: "Dr. Richard S. Wallace",
+      version: "Field Operations Edition",
+      equipment: {}
+    };
+
+    function loadAllData() {
+      try {
+        const rawLedger = localStorage.getItem(STORAGE_KEY_LEDGER);
+        ledgerRecords = rawLedger ? JSON.parse(rawLedger) : [];
+
+        const rawEq = localStorage.getItem(STORAGE_KEY_EQUIPMENT);
+        botMemory.equipment = rawEq ? JSON.parse(rawEq) : {};
+
+        const rawRules = localStorage.getItem(STORAGE_KEY_RULES);
+        userRules = rawRules ? JSON.parse(rawRules) : [
+          { id: "R-01", trigger: "tuesday", text: "Every Tuesday: Buy ingredients at Walmart for Taco Tuesday", category: "Zone 4: On the Road" }
+        ];
+      } catch (e) {
+        console.error("Storage load error:", e);
+      }
+      updateHeaderStats();
+    }
+
+    function saveAllData() {
+      localStorage.setItem(STORAGE_KEY_LEDGER, JSON.stringify(ledgerRecords));
+      localStorage.setItem(STORAGE_KEY_EQUIPMENT, JSON.stringify(botMemory.equipment));
+      localStorage.setItem(STORAGE_KEY_RULES, JSON.stringify(userRules));
+      updateHeaderStats();
+    }
+
+    function updateHeaderStats() {
+      const el = document.getElementById("header-records");
+      if (el) {
+        el.textContent = "Offline • " + ledgerRecords.length + " Records • " + userRules.length + " Rules";
+      }
+    }
+
+    function addRecord(category, text, meta = {}) {
+      const entry = {
+        id: "REC-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+        timestamp: new Date().toISOString(),
+        dateStr: new Date().toLocaleDateString(),
+        category: category,
+        text: text,
+        meta: meta
+      };
+      ledgerRecords.push(entry);
+      saveAllData();
+      return entry;
+    }
+
+    function addUserRule(triggerDayOrKeyword, ruleText) {
+      const rule = {
+        id: "RULE-" + Date.now(),
+        trigger: triggerDayOrKeyword.toLowerCase(),
+        text: ruleText,
+        created: new Date().toLocaleDateString()
+      };
+      userRules.push(rule);
+      saveAllData();
+      addRecord("rule_created", "Created rule: " + ruleText, { rule });
+      return rule;
+    }
+
+    // =========================================================================
+    // 2. A.L.I.C.E. KNOWLEDGE BASE & NATURAL LANGUAGE ENGINE
+    // =========================================================================
+    const aliceRules = [
+      // Direct explanation of knowledge base
+      { pattern: /(what do you know|what is your knowledge|what can you do|capabilities)/i, handler: () => {
+        return "🧠 [A.L.I.C.E. Knowledge Base Summary]:\n\n" +
+               "1. General Knowledge & Wit: Grammar, philosophy, science, history, humor, and natural conversation.\n" +
+               "2. Your Custom Operating Rules: Recurring habits and schedules (e.g. 'Every Tuesday: Buy taco ingredients at Walmart'). Type 'my rules' to see them.\n" +
+               "3. Registered Equipment: Remembers your tractors, trucks, and implements (type 'what is my equipment').\n" +
+               "4. Maintenance & Task Ledger: Immutable history of every oil change, repair, and completed task (type 'show ledger').\n" +
+               "5. Bold Bovine 4-Zone Matrix: Daily operational posture (type 'task mode').\n\n" +
+               "Ask me anything, or teach me by saying 'Rule: [your rule]' or 'My [machine] is a [model]'!";
+      }},
+
+      // Where is data stored?
+      { pattern: /(where is my data|where are you recording|where is (it|this) saved|storage location)/i, handler: () => {
+        return "💾 [Physical Data Storage Location]:\n\n" +
+               "• Your data lives physically on THIS DEVICE inside your browser's persistent storage (LocalStorage: 'ALICE_OPERATIONS_LEDGER_V1').\n" +
+               "• Zero cloud telemetry: Nothing is sent to Google, OpenAI, or external servers.\n" +
+               "• Survives reboots: It stays saved when you close the browser, reboot the phone, or walk into a deadzone.\n" +
+               "• Synchronization: Tap '🔄 Sync / Backup' in the top right anytime to export your records or merge records across your Laptop and Tablet.";
+      }},
+
+      // Adding Custom User Rules (e.g., "Every Tuesday I buy ingredients at Walmart...")
+      { pattern: /^(?:remember rule|add rule|new rule|rule):?\s*(.*)/i, handler: (match) => {
+        const fullRule = match[1].trim();
+        // Detect day of week if present
+        const dayMatch = fullRule.match(/(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+        const trigger = dayMatch ? dayMatch[1].toLowerCase() : "custom";
+        const rule = addUserRule(trigger, fullRule);
+        return "✅ [Custom Rule Saved to Permanent Memory]:\n" +
+               "• Rule: " + fullRule + "\n" +
+               "• Trigger Category: " + trigger.toUpperCase() + "\n" +
+               "• Persistence: Stored locally in your device's rulebook. Type 'my rules' to view.";
+      }},
+
+      { pattern: /^every (monday|tuesday|wednesday|thursday|friday|saturday|sunday) (.*)/i, handler: (match) => {
+        const day = match[1].toLowerCase();
+        const action = match[2].trim();
+        const ruleText = "Every " + day.charAt(0).toUpperCase() + day.slice(1) + ": " + action;
+        addUserRule(day, ruleText);
+        return "✅ [Recurring " + day.toUpperCase() + " Rule Logged]:\n" +
+               "• " + ruleText + "\n" +
+               "Whenever you ask 'What do I do on " + day + "?' or 'My rules', I will recall this!";
+      }},
+
+      // Querying Rules
+      { pattern: /^(my rules|show rules|list rules|what are my rules|rules)/i, handler: () => {
+        if (userRules.length === 0) {
+          return "You haven't added any custom rules yet. Add one by saying:\n'Every Tuesday I buy ingredients at Walmart for taco tuesday' or 'Rule: Check water troughs daily'.";
+        }
+        let out = "📜 [Your Active Operating Rules (" + userRules.length + " total)]:\n\n";
+        userRules.forEach((r, idx) => {
+          out += (idx + 1) + ". " + r.text + "\n";
+        });
+        out += "\n(To add another, say 'Rule: [your rule]' or 'Every [Day] [action]').";
+        return out;
+      }},
+
+      { pattern: /(?:what do i do on|what is scheduled for|what happens on)\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i, handler: (match) => {
+        const day = match[1].toLowerCase();
+        const matches = userRules.filter(r => r.trigger === day || r.text.toLowerCase().includes(day));
+        if (matches.length === 0) {
+          return "No specific recurring rules logged for " + day.charAt(0).toUpperCase() + day.slice(1) + ". Say 'Every " + day + " [action]' to create one!";
+        }
+        let out = "📅 [Rules for " + day.toUpperCase() + "]:\n";
+        matches.forEach(m => {
+          out += "• " + m.text + "\n";
+        });
+        return out;
+      }},
+
+      // Equipment Memory
+      { pattern: /^my (.*?) is a (.*?)$/i, handler: (match) => {
+        const item = match[1].trim();
+        const model = match[2].trim();
+        botMemory.equipment[item.toLowerCase()] = model;
+        saveAllData();
+        addRecord("equipment_registration", "Registered " + item + " as " + model, { item, model });
+        return "Logged: Your " + item + " is recorded in permanent memory as " + model + ".";
+      }},
+      { pattern: /^what is my (.*?)$/i, handler: (match) => {
+        const item = match[1].trim().toLowerCase();
+        if (botMemory.equipment[item]) {
+          return "Your " + item + " is recorded as: " + botMemory.equipment[item] + ".";
+        }
+        return "I don't have a record for " + item + " yet. Tell me: 'My tractor is a Kubota L2501'.";
+      }},
+      { pattern: /^what is my equipment|^equipment list/i, handler: () => {
+        const keys = Object.keys(botMemory.equipment);
+        if (keys.length === 0) {
+          return "No equipment registered yet. Tell me: 'My tractor is a Kubota L2501'.";
+        }
+        let out = "🚜 [Registered Equipment in Local Memory]:\n";
+        keys.forEach(k => {
+          out += "• " + k.toUpperCase() + ": " + botMemory.equipment[k] + "\n";
+        });
+        return out;
+      }},
+
+      // Action & Maintenance Event Logging
+      { pattern: /^(changed|replaced|greased|fixed|welded|checked|repaired) (.*)/i, handler: (match) => {
+        const action = match[1].toUpperCase();
+        const details = match[2].trim();
+        const rec = addRecord("maintenance", action + " " + details, { action, details });
+        return "✅ Logged to Local Ledger [" + rec.dateStr + "]:\nAction: " + action + "\nDetails: " + details + "\nStored safely in offline storage.";
+      }},
+      { pattern: /^(log|record|task done|completed) (.*)/i, handler: (match) => {
+        const text = match[2].trim();
+        const rec = addRecord("task", text, {});
+        return "✅ Task Saved to Ledger [" + rec.dateStr + "]:\n" + text;
+      }},
+
+      // Ledger Inquiry
+      { pattern: /^(show ledger|view log|show log|list records|history)/i, handler: () => {
+        if (ledgerRecords.length === 0) {
+          return "Your offline ledger is currently empty. Start logging actions like:\n'Changed oil on Kubota at 450 hours'\n'Task done Fixed south fence'";
+        }
+        let out = "📖 [Recent Logged Events (" + ledgerRecords.length + " total)]:\n";
+        const recent = ledgerRecords.slice(-6);
+        recent.forEach(r => {
+          out += "• [" + r.dateStr + " | " + r.category + "] " + r.text + "\n";
+        });
+        out += "\n(Tap 'Sync / Backup' at the top to export all records).";
+        return out;
+      }},
+
+      // Bold Bovine 4-Zone Matrix
+      { pattern: /^(task mode|tasks|zones|4-zone matrix|matrix)/i, response: 
+        "[Bold Bovine 4-Zone Matrix]:\n" +
+        "• Zone 1: AM Shift (Livestock chores, water, perimeter fence. Physical posture only).\n" +
+        "• Zone 2: W2 Office (Engineering deliverables, desk work, deep focus).\n" +
+        "• Zone 3: PM Shift (Shop work, welding, equipment maintenance. Under 90 mins).\n" +
+        "• Zone 4: On the Road (Town runs, feed procurement, route optimized)."
+      },
+
+      // Classic Greetings & Lore
+      { pattern: /^(hello|hi|hey|howdy|greetings|yo)\b/i, responses: [
+        "Hello there! A.L.I.C.E. is online and functioning at full capacity.",
+        "Howdy Josh! Ready to assist on the homestead today.",
+        "Greetings! All offline systems are nominal and ready for duty."
+      ]},
+      { pattern: /who are you/i, response: "I am A.L.I.C.E. (Artificial Linguistic Internet Computer Entity), a Loebner Prize winning intelligence adapted into your offline field operations co-pilot." },
+      { pattern: /(tell me a joke|tell joke)/i, responses: [
+        "Why did the tractor cross the pasture? To prove to the cows that it wasn't chicken.",
+        "There are 10 types of people in the world: those who understand binary, and those who don't.",
+        "A farmer counted 196 sheep in his pasture. But when he rounded them up, he had 200."
+      ]},
+      { pattern: /how are you/i, response: "I am running at peak efficiency inside your device's memory with zero cloud latency." },
+      { pattern: /thank you|thanks/i, response: "You are very welcome, Josh. Glad to be of service." }
+    ];
+
+    function getAliceResponse(input) {
+      const cleanInput = input.trim();
+      if (!cleanInput) return "Please enter a message.";
+
+      for (let i = 0; i < aliceRules.length; i++) {
+        const rule = aliceRules[i];
+        const match = cleanInput.match(rule.pattern);
+        if (match) {
+          if (rule.handler) return rule.handler(match);
+          if (Array.isArray(rule.responses)) {
+            const idx = Math.floor(Math.random() * rule.responses.length);
+            return rule.responses[idx];
+          }
+          return rule.response;
+        }
+      }
+
+      // Check if user is asking about a specific day
+      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+      for (const d of days) {
+        if (cleanInput.toLowerCase().includes(d)) {
+          const matchRules = userRules.filter(r => r.trigger === d || r.text.toLowerCase().includes(d));
+          if (matchRules.length > 0) {
+            let out = "📅 [Rules for " + d.toUpperCase() + "]:\n";
+            matchRules.forEach(m => { out += "• " + m.text + "\n"; });
+            return out;
+          }
+        }
+      }
+
+      // Intelligent Fallbacks
+      if (cleanInput.includes("why")) {
+        return "In an offline operating system, that usually traces back to an upstream condition or missing input. What specific symptoms are you seeing?";
+      }
+      if (cleanInput.includes("how")) {
+        return "To execute that properly, identify the required tools first and break it down into an atomic physical task capped under 90 minutes.";
+      }
+
+      return "I have noted that. To teach me a recurring rule, type 'Rule: [your rule]'. To log maintenance, type 'Changed [part] on [machine]'. Type 'help' for my full menu.";
+    }
+
+    // =========================================================================
+    // 3. UI CONTROLLER
+    // =========================================================================
+    const chatContainer = document.getElementById("chat-container");
+    const messageInput = document.getElementById("message-input");
+
+    function getTimeString() {
+      const now = new Date();
+      return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function appendMessage(sender, text) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "message " + sender;
+
+      const bubbleDiv = document.createElement("div");
+      bubbleDiv.className = "bubble";
+      bubbleDiv.textContent = text;
+
+      const metaDiv = document.createElement("div");
+      metaDiv.className = "msg-meta";
+      metaDiv.textContent = (sender === "user" ? "You" : "A.L.I.C.E.") + " • " + getTimeString();
+
+      msgDiv.appendChild(bubbleDiv);
+      msgDiv.appendChild(metaDiv);
+      chatContainer.appendChild(msgDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function sendMessage(customText = null) {
+      const text = (customText !== null ? customText : messageInput.value).trim();
+      if (!text) return;
+
+      appendMessage("user", text);
+      if (customText === null) {
+        messageInput.value = "";
+      }
+      messageInput.focus();
+
+      setTimeout(() => {
+        const reply = getAliceResponse(text);
+        appendMessage("bot", reply);
+      }, 40);
+    }
+
+    function quickSend(text) {
+      sendMessage(text);
+    }
+
+    messageInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    });
+
+    // =========================================================================
+    // 4. MULTI-DEVICE SYNC MODAL
+    // =========================================================================
+    function openSyncModal() {
+      const modal = document.getElementById("sync-modal");
+      const textarea = document.getElementById("sync-data");
+      const bundle = {
+        ledger: ledgerRecords,
+        rules: userRules,
+        equipment: botMemory.equipment,
+        exportedAt: new Date().toISOString()
+      };
+      textarea.value = JSON.stringify(bundle, null, 2);
+      modal.style.display = "flex";
+    }
+
+    function closeSyncModal() {
+      document.getElementById("sync-modal").style.display = "none";
+    }
+
+    function copySyncData() {
+      const textarea = document.getElementById("sync-data");
+      textarea.select();
+      navigator.clipboard.writeText(textarea.value).then(() => {
+        alert("Copied full backup to clipboard (Ledger, Rules, and Equipment)! Paste into another device to sync.");
+      }).catch(() => {
+        alert("Selection ready. Long-press to copy.");
+      });
+    }
+
+    function importSyncData() {
+      const pasteData = prompt("Paste full JSON bundle from another device:");
+      if (!pasteData) return;
+      try {
+        const incoming = JSON.parse(pasteData);
+        let addedLedger = 0;
+        let addedRules = 0;
+
+        // Merge ledger
+        if (Array.isArray(incoming.ledger)) {
+          const existingIds = new Set(ledgerRecords.map(r => r.id));
+          incoming.ledger.forEach(entry => {
+            if (entry.id && !existingIds.has(entry.id)) {
+              ledgerRecords.push(entry);
+              existingIds.add(entry.id);
+              addedLedger++;
+            }
+          });
+          ledgerRecords.sort((a,b) => (a.timestamp > b.timestamp ? 1 : -1));
+        }
+
+        // Merge rules
+        if (Array.isArray(incoming.rules)) {
+          const existingRuleTexts = new Set(userRules.map(r => r.text.toLowerCase()));
+          incoming.rules.forEach(r => {
+            if (r.text && !existingRuleTexts.has(r.text.toLowerCase())) {
+              userRules.push(r);
+              existingRuleTexts.add(r.text.toLowerCase());
+              addedRules++;
+            }
+          });
+        }
+
+        // Merge equipment
+        if (incoming.equipment && typeof incoming.equipment === "object") {
+          Object.assign(botMemory.equipment, incoming.equipment);
+        }
+
+        saveAllData();
+        alert("Success! Merged " + addedLedger + " new ledger records and " + addedRules + " new rules.");
+        closeSyncModal();
+      } catch (err) {
+        alert("Error parsing sync data: " + err.message);
+      }
+    }
+
+    window.addEventListener("load", () => {
+      loadAllData();
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+  </script>
+</body>
+</html>
